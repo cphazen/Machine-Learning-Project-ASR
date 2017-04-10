@@ -1,6 +1,12 @@
+# Built-in imports
 import random
 import copy
+
+# External libraries:
 import numpy as np
+
+# Our own stuff:
+from progress import Progress
 
 class RNN(object):
     def __init__(self, input_count, input_dimension, output_count, output_dimension,
@@ -21,6 +27,14 @@ class RNN(object):
         self.d_activate = np.vectorize(d_activate)
 
     def forward_propagate(self, data):
+        # Unfolds network for the number of items provided, then reshapes result
+        # to match expected output
+        #
+        # Parameters:
+        #   data        data to transform into approximation of classification
+        #
+        # Returns:
+        #   approximation of classfication
         self.ai = []
         self.am = []
         self.ao1 = []
@@ -46,26 +60,52 @@ class RNN(object):
         return self.ao2
 
     def back_propagate(self, expected_output, eta):
-        #delta = self.d_activate(actual[0]) * (data - actual[0])
-        #for i in range(1, self.s.shape[0]):
-        #    delta += self.d_activate(actual[i]) * (data - actual[i]).T
+        # Uses chain rule and gradient descent to account for error and
+        # reset weights through time
         #
-        #self.w += eta * (delta * input[2:])
+        # Parameters:
+        #   expected_output     expected output of feed forward
+        #   eta                 learning rate
+        #
+        # Returns:
+        #   None
+
         # Error
         # LAYER 3 Error:
         error_w3 = expected_output - self.ao2
         delta_w3 = self.d_activate(self.ao2) * error_w3
         slope_w3 = np.dot(delta_w3, np.array(self.ao1).T)
 
-        # LAYER 2 Error:
-        #for i in xrange(self.id[0]):
-        #error_w2 = np.dot(delta_w3, self.w3)
-        #delta_w2 = self.d_activate(self.am[-1])
+        # LAYER 2/1/M Error:
+        error_w2 = np.dot(delta_w3.T, self.w3.T)
+        delta_w2 = self.d_activate(self.ao1) * error_w2.T
 
+        slope_w2 = np.zeros_like(self.w2)
+        slope_wm = np.zeros_like(self.wm)
+        slope_w1 = np.zeros_like(self.w1)
+
+        this_dw1 = np.zeros(self.md)
+        for i in xrange(self.id[0]):
+            this_dw2 = delta_w2[-i-1]
+            this_l1 = self.am[-i-1]
+            prev_l1 = self.am[-i-2]
+
+            error_wm = np.dot(this_dw1, self.wm.T)
+            error_w1 = np.dot(this_dw2, self.w2.T)
+            delta_w1 = self.d_activate(this_l1) * error_w1
+            delta_w1h = error_wm + error_w1
+
+            this_dw1 = delta_w1h
+
+            slope_w2 += np.dot(this_l1[:,None], this_dw2[None,:])
+            slope_wm += np.dot(prev_l1[:,None], delta_w1h[None,:])
+            slope_w1 += np.dot(self.ai[i][:,None], delta_w1h[None,:])
 
         # Update
         self.w3 += eta * slope_w3.T
-
+        self.w2 += eta * slope_w2
+        self.wm += eta * slope_wm
+        self.w1 += eta * slope_w1
 
     def train(self, given_input, expected_output, epoch, learning_rate):
         # Performs feed forward and back propagate for all input
@@ -78,13 +118,21 @@ class RNN(object):
         #
         # Returns:
         #   Saved output to feed into next layer
+
+        p = Progress(30, epoch*len(given_input))
+        p.start_progress()
+
         cached_output = []
         for i in xrange(epoch):
             for j in xrange(len(given_input)):
+                # Train
                 output = self.forward_propagate(given_input[j])
                 cached_output.append(output)
                 self.back_propagate(expected_output[j], learning_rate)
 
+                # Print Progress
+                p.update_progress()
+        p.complete_progress()
         return cached_output
 
 

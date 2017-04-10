@@ -12,27 +12,6 @@ np.seterr(all="ignore")         # NOTE: You may want to comment this out for tes
 from cnn import CNN
 from rnn import RNN
 
-# TODO LIST:
-# JOSH:
-#   IMPORTANT: Custom audio -> feature vector
-#   Play around with the variables
-#   Just play around with everything I did and make it better
-#   (Optional) Add pooling to CNN
-#   (Optional) Add more layers to CNN
-#   (Optional) Alter data to allow for isolated word
-#   (Optional) Alter data to add phone alignments
-#
-# COURTNEY:
-#   IMPORTANT: RNN for phones -> words
-#   IMPORTANT: feature vectors -> words
-#   IMPORTANT: feature vectors -> phones
-#   Make a readme.md
-#   Progress messages
-#   Load/save functions
-#   Make sure LibriSpeech imports properly
-#   Testing function
-#   Demo function
-
 # READ & FORMAT DATA
 def one_hot(item, dictionary):
     # The number of phones is finite, so we can just convert phones to separate
@@ -160,6 +139,21 @@ def mfcc_to_features(file):
             features.append(feature)
     return features
 
+def regularize_length(length, vectors, empty):
+    # Ensures all vectors are at least of length length
+    #
+    # Parameters:
+    #   length      min length to set all vectors to
+    #   vectors     vectors to be padded
+    #   empty       empty value to pad vectors with
+    #
+    # Returns:
+    #   vectors where all vectors are of the same length length
+    for vector in vectors:
+        empty_vectors = [empty] * (length - len(vector))
+        vector += empty_vectors
+    return vectors
+
 def setup_features(directory, phones, dictionary, transcript, words_to_phones):
     # Sets up feature vectors
     #
@@ -223,12 +217,6 @@ def setup_features(directory, phones, dictionary, transcript, words_to_phones):
 
     return audio_features, phone_features, word_features
 
-def regularize_length(length, vectors, empty):
-    for vector in vectors:
-        empty_vectors = [empty] * (length - len(vector))
-        vector += empty_vectors
-    return vectors
-
 # SAVE/LOAD STATE
 # TODO: Training takes a lot of time
 
@@ -261,28 +249,28 @@ def d_tanh(x):
     # Tanh (derivative)
     return 1.0 - x**2
 
-
 # MAIN
 def main():
     # VARIABLES - FILES
-    phone_file = 'an4\\etc\\an4.phone'                        # path to file of phone list
-    dictionary_file = 'an4\\etc\\an4.dic'                     # path to file of word list
-    transcript_file = 'an4\\etc\\an4_train.transcription'     # path/directory of transcript file(s)
-    transcript_type = 'CMU AN4'                               # library being used (to find & parse transcript file)
-    words_to_phones_file = 'an4\\etc\\an4.dic'                # path to file matching words with phones
-    directory = 'an4\\feat\\an4_clstk'                        # directory containing audio files
+    # NOTE: Make sure to change these for different libraries!
+    phone_file = 'an4\\etc\\an4.phone'                      # path to file of phone list
+    dictionary_file = 'an4\\etc\\an4.dic'                   # path to file of word list
+    transcript_file = 'an4\\etc\\an4_train.transcription'   # path/directory of transcript file(s)
+    transcript_type = 'CMU AN4'                             # library being used (to find & parse transcript file)
+    words_to_phones_file = 'an4\\etc\\an4.dic'              # path to file matching words with phones
+    directory = 'an4\\feat\\an4_clstk'                      # directory containing audio files
 
     # VARIABLES - NUMBERS
     learning_rate = .2
     epoch = 1
     #   Layer 1:
-    filter_width = 2
-    filter_height = 2
-    filter_count = 3
-    filter_stride = 1
-    filter_padding = 0
+    filter_width = 2                    # width of convolving filter
+    filter_height = 2                   # height of convolving filter
+    filter_count = 3                    # number of filters applied
+    filter_stride = 1                   # how far the filter moves between convolves
+    filter_padding = 0                  # padding around the input to use edge data (may not be useful with audio)
     #   Layer 2:
-    memory_dimension = 10
+    memory_dimension = 5                # number of hidden nodes in RNN
 
     # VARIABLES - FUNCTIONS
     activate = sigmoid
@@ -305,7 +293,6 @@ def main():
     print("[INFO] Training LAYER 1: AUDIO -> PHONES")
     l1_input = np.matrix(audio_features[0]).shape
     l1_output = np.matrix(phone_features[0]).shape
-    """
     l1 = CNN(l1_input[0], l1_input[1], 1,                   # TODO: Change the inputs depending on the custom audio output
              filter_width, filter_height,
              filter_count, filter_stride, filter_padding,
@@ -313,15 +300,9 @@ def main():
              activate, d_activate)
     output_features = l1.train(audio_features, phone_features, epoch, learning_rate)
 
-
     # NOTE: You can reformat output_features (a list of phones) to be
     #       fed into the next layer here, e.g. add new dimensions with deltas
     #       if you want to try a sliding window
-
-    output_features = zip(*output_features)                 # Transpose output
-    """
-
-    output_features = phone_features
 
     # LAYER 2: PHONES -> WORDS
     print("[INFO] Training LAYER 2: PHONES -> WORDS")
@@ -329,7 +310,7 @@ def main():
     l2_output = np.matrix(word_features[0]).shape
     l2 = RNN(l2_input[0], l2_input[1], l2_output[0], l2_output[1],
              memory_dimension, activate, d_activate)
-    l2.train(output_features, word_features, epoch, learning_rate)
+    op = l2.train(output_features, word_features, epoch, learning_rate)
 
     # NOTE: You can also simulate a sliding window using a CNN with a filter
     #       height the same as the input height!
@@ -339,7 +320,6 @@ def main():
 
     # TESTING
     # TODO: Testing stuff
-    # print("[INFO] Beginning testing...")
 
     return
 

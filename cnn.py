@@ -1,7 +1,10 @@
+# Built-in imports
 import random
-import numpy as np
-import sys
 
+# External libraries:
+import numpy as np
+
+# Our own stuff:
 from progress import Progress
 
 def data_to_col(data, filter_size, stride_length):
@@ -203,7 +206,7 @@ class CNN(object):
 
         self.fc2 = np.dot(self.fc1, self.o2w)
         self.fc2 = self.activate(self.fc2)
-        return self.fc2
+        return self.fc2.T
 
     def back_propagate(self, expected_output, eta):
         # Uses chain rule and gradient descent to account for error and
