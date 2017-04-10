@@ -247,6 +247,38 @@ class CNN(object):
 
         return
 
+    def save(self, name):
+        # Save current state
+        #
+        # Parameters:
+        #   name            name of file to save arrays to
+        # Returns:
+        #   None
+        name = name + '.npz'
+        np.savez(name, fw=np.array(self.fw), o1w=self.o1w, o2w=self.o2w)
+        return
+
+    def load(self, name):
+        # Load previous state. Prints a warning if loaded state dimensions don't match
+        #
+        # Parameters:
+        #   name            name of file to save arrays to
+        # Returns:
+        #   None
+
+        name = name + '.npz'
+        a = np.load(name)
+        res = False
+        if((np.array(self.fw).shape == a['fw'].shape) and (self.o1w.shape == a['o1w'].shape) and \
+           (self.o2w.shape == a['o2w'].shape)):
+            self.fw = list(a['fw'])
+            self.o1w = a['o1w']
+            self.o2w = a['o2w']
+            res = True
+        else:
+            print('[ERROR] File dimensions do not match this network')
+        return res
+
     def train(self, given_input, expected_output, epoch, learning_rate):
         # Performs feed forward and back propagate for all input
         #

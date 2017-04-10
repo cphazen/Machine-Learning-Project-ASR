@@ -107,6 +107,40 @@ class RNN(object):
         self.wm += eta * slope_wm
         self.w1 += eta * slope_w1
 
+    def save(self, name):
+        # Save current state
+        #
+        # Parameters:
+        #   name            name of file to save arrays to
+        # Returns:
+        #   None
+
+        name = name + '.npz'
+        np.savez(name, wm=self.wm, w1=self.w1, w2=self.w2, w3=self.w3)
+        return
+
+    def load(self, name):
+        # Load previous state. Prints a warning if loaded state dimensions don't match
+        #
+        # Parameters:
+        #   name            name of file to save arrays to
+        # Returns:
+        #   None
+
+        name = name + '.npz'
+        a = np.load(name)
+        res = False
+        if((self.w3.shape == a['w3'].shape) and (self.w2.shape == a['w2'].shape) and \
+           (self.w1.shape == a['w1'].shape) and (self.wm.shape == a['wm'].shape)):
+            self.w3 = a['w3']
+            self.w2 = a['w2']
+            self.w1 = a['w1']
+            self.wm = a['wm']
+            res = True
+        else:
+            print('[ERROR] File dimensions do not match this network')
+        return res
+
     def train(self, given_input, expected_output, epoch, learning_rate):
         # Performs feed forward and back propagate for all input
         #

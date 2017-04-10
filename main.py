@@ -12,7 +12,36 @@ np.seterr(all="ignore")         # NOTE: You may want to comment this out for tes
 from cnn import CNN
 from rnn import RNN
 
-# READ & FORMAT DATA
+#===== ACTIVATION FUNCTIONS =====#
+def sign(x):
+    # Sign
+    return 1 if x >= 0 else -1
+
+def sigmoid(x):
+    # Sigmoid
+    return 1.0 / (1.0 + np.exp(-x))
+
+def d_sigmoid(x):
+    # Sigmoid (derivative)
+    return x * (1.0 - x)
+
+def relu(x):
+    # ReLU
+    return x if x > 0 else 0
+
+def d_relu(x):
+    # ReLU (derivative)
+    return 1 if x > 0 else 0
+
+def tanh(x):
+    # Tanh
+    return np.tanh(x)
+
+def d_tanh(x):
+    # Tanh (derivative)
+    return 1.0 - x**2
+
+#===== READ & FORMAT DATA =====#
 def one_hot(item, dictionary):
     # The number of phones is finite, so we can just convert phones to separate
     # properties
@@ -25,6 +54,18 @@ def one_hot(item, dictionary):
     #   vectorized item as a list of booleans
     return map(lambda x: 1 if x == item  else 0, dictionary)
 
+def rev_one_hot(vector, dictionary):
+    # Convert a one_hot vector back into its original feature
+    #
+    # Parameters:
+    #   vector      vector to be converted into a item
+    #   dictionary  list of all items
+    #
+    # Returns:
+    #   category of vectorized item
+    vector = vector.tolist()
+    return dictionary[vector.index(max(vector))]
+
 def binary(i, length):
     # There are a ton of words, so we're going to use binary encoding
     #
@@ -36,6 +77,25 @@ def binary(i, length):
     #   vectorized word as a list of booleans
     m = bin(i)[2:].zfill(length)
     return map(lambda x: 1 if x == '1' else 0, m)
+
+def rev_binary(vector, threshold, dictionary):
+    # Reverse binary vectors back into words
+    #
+    # Parameters:
+    #   i           binary representation of word
+    #   threshold   minimum value in vector to be considered a 1
+    #   dictionary  list of all words
+    #
+    # Returns:
+    #   word from dictionary
+    binary = ''.join(map(lambda x: '1' if x >= threshold else '0', vector))
+    index = int(binary, 2)
+    if index < len(dictionary):
+        return dictionary[index]
+    else:
+        print("[ERROR] That's not a word! Try setting your threshold higher.")
+
+    return ""
 
 def load_list(file):
     # Read file into a list, delimited by new lines
@@ -217,39 +277,48 @@ def setup_features(directory, phones, dictionary, transcript, words_to_phones):
 
     return audio_features, phone_features, word_features
 
-# SAVE/LOAD STATE
-# TODO: Training takes a lot of time
+#===== SAVE/LOAD STATE =====#
+def save(layer_1, layer_2):
+    # Save weights for two layers of a Neural network
+    layer_1.save('layer_1')
+    layer_2.save('layer_2')
+    return
 
-# ACTIVATION FUNCTIONS
-def sign(x):
-    # Sign
-    return 1 if x >= 0 else -1
+def load(layer_1, layer_2):
+    # Load weights saved with save
+    res1 = layer_1.load('layer_1')
+    res2 = layer_2.load('layer_2')
+    return res1 and res2
 
-def sigmoid(x):
-    # Sigmoid
-    return 1.0 / (1.0 + np.exp(-x))
+#===== FUNCTIONALITY =====#
+def train_network(l1, l2, features, epoch, learning_rate, dictionary, phones):
+    # UNGROUP VARIABLES
+    audio_features, phone_features, word_features = features
 
-def d_sigmoid(x):
-    # Sigmoid (derivative)
-    return x * (1.0 - x)
+    # TRAIN LAYER 1: AUDIO -> PHONES
+    print("[INFO] Training LAYER 1: AUDIO -> PHONES")
+    output_features = l1.train(audio_features, phone_features, epoch, learning_rate)
 
-def relu(x):
-    # ReLU
-    return x if x > 0 else 0
+    # NOTE: You can reformat output_features (a list of phones) to be
+    #       fed into the next layer here, e.g. add new dimensions with deltas
+    #       if you want to try a sliding window
+    print(output_features)
+    # TRAIN LAYER 2: PHONES -> WORDS
+    print("[INFO] Training LAYER 2: PHONES -> WORDS")
+    l2.train(output_features, word_features, epoch, learning_rate)
+    print("[INFO] Completed training\t\t")
 
-def d_relu(x):
-    # ReLU (derivative)
-    return 1 if x > 0 else 0
+    return
 
-def tanh(x):
-    # Tanh
-    return np.tanh(x)
+def test_network():
+    # TODO
+    pass
 
-def d_tanh(x):
-    # Tanh (derivative)
-    return 1.0 - x**2
+def demo_network():
+    # TODO
+    pass
 
-# MAIN
+#===== MAIN =====#
 def main():
     # VARIABLES - FILES
     # NOTE: Make sure to change these for different libraries!
@@ -258,7 +327,7 @@ def main():
     transcript_file = 'an4\\etc\\an4_train.transcription'   # path/directory of transcript file(s)
     transcript_type = 'CMU AN4'                             # library being used (to find & parse transcript file)
     words_to_phones_file = 'an4\\etc\\an4.dic'              # path to file matching words with phones
-    directory = 'an4\\feat\\an4_clstk'                      # directory containing audio files
+    directory_path = 'an4\\feat\\an4_clstk'                 # directory containing audio files
 
     # VARIABLES - NUMBERS
     learning_rate = .2
@@ -285,12 +354,14 @@ def main():
     words_to_phones['<sil>'] = 'SIL'
 
     print("[INFO] Setting up features")
-    audio_features, phone_features, word_features = setup_features(directory, phones, dictionary, transcript, words_to_phones)
-    # TODO: Split up our features for testing?
+    audio_features, phone_features, word_features = setup_features(directory_path, phones, dictionary, transcript, words_to_phones)
 
-    # TRAINING
+    # GROUPING VARIABLES
+    features = (audio_features, phone_features, word_features)
+
+    # INITIALIZING
     # LAYER 1: AUDIO -> PHONES
-    print("[INFO] Training LAYER 1: AUDIO -> PHONES")
+    print("[INFO] Initializing LAYER 1: AUDIO -> PHONES")
     l1_input = np.matrix(audio_features[0]).shape
     l1_output = np.matrix(phone_features[0]).shape
     l1 = CNN(l1_input[0], l1_input[1], 1,                   # TODO: Change the inputs depending on the custom audio output
@@ -298,28 +369,68 @@ def main():
              filter_count, filter_stride, filter_padding,
              l1_output[0], l1_output[1],
              activate, d_activate)
-    output_features = l1.train(audio_features, phone_features, epoch, learning_rate)
-
-    # NOTE: You can reformat output_features (a list of phones) to be
-    #       fed into the next layer here, e.g. add new dimensions with deltas
-    #       if you want to try a sliding window
 
     # LAYER 2: PHONES -> WORDS
-    print("[INFO] Training LAYER 2: PHONES -> WORDS")
-    l2_input = np.matrix(output_features[0]).shape
+    print("[INFO] Initializing LAYER 2: PHONES -> WORDS")
+    l2_input = l1_output
     l2_output = np.matrix(word_features[0]).shape
     l2 = RNN(l2_input[0], l2_input[1], l2_output[0], l2_output[1],
              memory_dimension, activate, d_activate)
-    op = l2.train(output_features, word_features, epoch, learning_rate)
 
     # NOTE: You can also simulate a sliding window using a CNN with a filter
     #       height the same as the input height!
     #       You might want to change the RNN to that if it produces better
     #       results.
 
-
-    # TESTING
-    # TODO: Testing stuff
+    # MENU
+    command = ''
+    trained = False
+    while(command != '0'):
+        print("===================================")
+        print('   NEURAL NETWORK OPTIONS:')
+        print('   [1] Train network')
+        print('   [2] Load an existing network')
+        if trained:
+            print('   [3] Test network')
+            print('   [4] Demo network')
+            print('   [5] Save network')
+        print('   [0] Quit')
+        print("===================================")
+        try:
+            command = int(input('What would you like to do? '))
+        except (NameError, ValueError, SyntaxError):
+            print('Invalid command!')
+            continue
+        else:
+            if command == 0:
+                # [0] Quit
+                print('Bye!')
+                break
+            elif command == 1:
+                # [1] Train network
+                train_network(l1, l2, features, epoch, learning_rate, dictionary, phones)
+                trained = True
+            elif command == 2:
+                # [2] Load an existing network
+                print('[INFO] Attempting to load existing network')
+                if load(l1, l2):
+                    trained = True
+            elif command == 3 and trained:
+                # [3] Test network
+                # TODO: Testing function
+                print('[ERROR] Not implemented')
+                pass
+            elif command == 4 and trained:
+                # [4] Demo network
+                # TODO: Demo function
+                print('[ERROR] Not implemented')
+                pass
+            elif command == 5 and trained:
+                # [5] Save network
+                print('[INFO] Saving network')
+                save(l1, l2)
+            else:
+                print('Invalid command!')
 
     return
 
