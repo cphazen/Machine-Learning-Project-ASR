@@ -2,6 +2,8 @@ import random
 import numpy as np
 import sys
 
+from progress import Progress
+
 def data_to_col(data, filter_size, stride_length):
     # Realigns data into a vector to be used for convolution
     #
@@ -254,9 +256,9 @@ class CNN(object):
         # Returns:
         #   Saved output to feed into next layer
 
-        #str_format = "\r[INFO] %d%%"
-        #sys.stdout.write(str_format % 0)
-        #sys.stdout.flush()
+        p = Progress(30, epoch*len(given_input))
+        p.start_progress()
+
         cached_output = []
         for i in xrange(epoch):
             for j in xrange(len(given_input)):
@@ -266,12 +268,9 @@ class CNN(object):
                 self.back_propagate(expected_output[j], learning_rate)
 
                 # Print Progress
-                #progress = ((j*epoch*1. + 1)/(len(given_input)*epoch*1.)) * 100
-                #sys.stdout.write(str_format % progress)
-                #sys.stdout.flush()
+                p.update_progress()
 
-        #sys.stdout.write("\r[INFO] Training complete!")
-        #sys.stdout.flush()
+        p.complete_progress()
         return cached_output
 
     def test(self, data):

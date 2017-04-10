@@ -10,7 +10,7 @@ np.seterr(all="ignore")         # NOTE: You may want to comment this out for tes
 
 # Our own stuff:
 from cnn import CNN
-#from rnn import RNN
+from rnn import RNN
 
 # TODO LIST:
 # JOSH:
@@ -23,10 +23,10 @@ from cnn import CNN
 #   (Optional) Alter data to add phone alignments
 #
 # COURTNEY:
-#   Make a readme.md
 #   IMPORTANT: RNN for phones -> words
 #   IMPORTANT: feature vectors -> words
 #   IMPORTANT: feature vectors -> phones
+#   Make a readme.md
 #   Progress messages
 #   Load/save functions
 #   Make sure LibriSpeech imports properly
@@ -275,13 +275,14 @@ def main():
     # VARIABLES - NUMBERS
     learning_rate = .2
     epoch = 1
-    # Layer 1:
+    #   Layer 1:
     filter_width = 2
     filter_height = 2
     filter_count = 3
     filter_stride = 1
     filter_padding = 0
-    # Layer 2:
+    #   Layer 2:
+    memory_dimension = 10
 
     # VARIABLES - FUNCTIONS
     activate = sigmoid
@@ -301,25 +302,44 @@ def main():
 
     # TRAINING
     # LAYER 1: AUDIO -> PHONES
-    print("[INFO] Training LAYER 1: Audio -> phones")
+    print("[INFO] Training LAYER 1: AUDIO -> PHONES")
     l1_input = np.matrix(audio_features[0]).shape
-    l1_output = np.matrix(phone_features[1]).shape
-    l1 = CNN(l1_input[0], l1_input[1], 1,
+    l1_output = np.matrix(phone_features[0]).shape
+    """
+    l1 = CNN(l1_input[0], l1_input[1], 1,                   # TODO: Change the inputs depending on the custom audio output
              filter_width, filter_height,
              filter_count, filter_stride, filter_padding,
              l1_output[0], l1_output[1],
              activate, d_activate)
     output_features = l1.train(audio_features, phone_features, epoch, learning_rate)
 
+
     # NOTE: You can reformat output_features (a list of phones) to be
-    #       fed into the next layer here
+    #       fed into the next layer here, e.g. add new dimensions with deltas
+    #       if you want to try a sliding window
+
+    output_features = zip(*output_features)                 # Transpose output
+    """
+
+    output_features = phone_features
 
     # LAYER 2: PHONES -> WORDS
-    print("[INFO] Training LAYER 2: Phones-> words")
+    print("[INFO] Training LAYER 2: PHONES -> WORDS")
+    l2_input = np.matrix(output_features[0]).shape
+    l2_output = np.matrix(word_features[0]).shape
+    l2 = RNN(l2_input[0], l2_input[1], l2_output[0], l2_output[1],
+             memory_dimension, activate, d_activate)
+    l2.train(output_features, word_features, epoch, learning_rate)
+
+    # NOTE: You can also simulate a sliding window using a CNN with a filter
+    #       height the same as the input height!
+    #       You might want to change the RNN to that if it produces better
+    #       results.
 
 
     # TESTING
-    #print("[INFO] Beginning testing...")
+    # TODO: Testing stuff
+    # print("[INFO] Beginning testing...")
 
     return
 
