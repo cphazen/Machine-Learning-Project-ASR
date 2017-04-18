@@ -1,3 +1,6 @@
+# https://pypi.python.org/pypi/numpy
+# http://aka.ms/vcpython27
+
 import math, os, sys, time, io, wave, numpy
 
 from sinusoid import Sinusoid, Phasor # probably wont need these, will delete them later if that be the case
