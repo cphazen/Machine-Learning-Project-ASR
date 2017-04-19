@@ -302,7 +302,7 @@ def train_network(l1, l2, features, epoch, learning_rate, dictionary, phones):
     # NOTE: You can reformat output_features (a list of phones) to be
     #       fed into the next layer here, e.g. add new dimensions with deltas
     #       if you want to try a sliding window
-    print(output_features)
+    # print(output_features)
     # TRAIN LAYER 2: PHONES -> WORDS
     print("[INFO] Training LAYER 2: PHONES -> WORDS")
     l2.train(output_features, word_features, epoch, learning_rate)
@@ -334,10 +334,12 @@ def main():
     epoch = 1
     #   Layer 1:
     filter_width = 2                    # width of convolving filter
-    filter_height = 2                   # height of convolving filter
+    filter_height = 13                  # height of convolving filter
     filter_count = 3                    # number of filters applied
     filter_stride = 1                   # how far the filter moves between convolves
     filter_padding = 0                  # padding around the input to use edge data (may not be useful with audio)
+    downsample_count = 1                # how many times downsampling is performed
+    downsample_multiplier = 2
     #   Layer 2:
     memory_dimension = 5                # number of hidden nodes in RNN
 
@@ -368,6 +370,7 @@ def main():
              filter_width, filter_height,
              filter_count, filter_stride, filter_padding,
              l1_output[0], l1_output[1],
+             downsample_count, downsample_multiplier,
              activate, d_activate)
 
     # LAYER 2: PHONES -> WORDS

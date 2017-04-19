@@ -109,7 +109,7 @@ def d_col_to_data(col, data, filter_size, stride_length):
     deltas = np.zeros(filter_size)                  # fill delta array with zeros
     og_sum = np.zeros(filter_size)                  # fill og_sum array with zeros
     for k in xrange(ch):                            # for each column in col...
-        block = stretched_col[:,k].reshape((fd, fh, fw)) #   reshape deltas into a block
+        block = stretched_col[:,k].reshape((fd, fw, fh)) #   reshape deltas into a block
         deltas += block
 
         x = k / j * stride_length                   #   get horizontal starting index
@@ -120,24 +120,27 @@ def d_col_to_data(col, data, filter_size, stride_length):
     slope = og_sum * deltas                         # calculate slope
     return slope
 
-
 class CNN(object):
     def __init__(self, input_width, input_height, input_depth,
                        filter_width, filter_height,
                        filter_count, filter_stride, filter_padding,
                        output_width, output_height,
+                       downsample_count, downsample_multiplier,
                        activate, d_activate):
         # DIMENSIONS
         self.id = (input_depth, input_height, input_width)
         self.fd = (input_depth, filter_height, filter_width)
         self.cd = (filter_count,
-                   (input_height - filter_height + 2 * filter_padding)/filter_stride + 1,
-                   (input_width - filter_width + 2 * filter_padding)/filter_stride + 1)
+                   (input_height - filter_width + (2 * filter_padding))/filter_stride + 1,
+                   (input_width - filter_height + (2 * filter_padding))/filter_stride + 1)
         self.bd = (filter_count, 1, 1)
         self.od = (1, output_height, output_width)
 
         self.fs = filter_stride
         self.fp = filter_padding
+
+        self.dc = downsample_count
+        self.dm = downsample_multiplier
 
         # WEIGHTS
         self.fw = []
@@ -171,6 +174,50 @@ class CNN(object):
         col_data = data_to_col(data, (self.fd[1],self.fd[2]), self.fs)  # convert data to columns
         res = np.dot(filter,col_data)                                   # multiply by filter
         return res
+
+    def downsample(self, data):
+        col_data = data_to_col(data, (self.fd[1],self.fd[2]), self.fs*self.dm)  # convert data to columns
+        print(col_data.shape)
+
+    def feed_forward_w_downsample(self, data):
+        # Pads data, performs convolution, and fully connects layers into output
+        #
+        # Parameters:
+        #   data        data to transform into approximation of classification
+        #
+        # Returns:
+        #   approximation of classification
+
+        # Add padding to data
+        self.data = np.matrix(data).reshape(self.id)
+        pd = self.id[0]
+        pw = self.id[1] + 2 * self.fp
+        ph = self.id[2] + 2 * self.fp
+        self.padded_data = np.pad(data, [(self.fp,self.fp),(self.fp,self.fp)], 'constant', constant_values = 0.0)
+        self.padded_data = self.padded_data.reshape((pd, pw, ph))
+
+        # Convolve
+        curr_dim = self.cd
+        self.convolution_layer = [np.zeros((curr_dim[0], curr_dim[1] * curr_dim[2]))] * self.dc
+        for i in xrange(self.dc):
+            # Convolve
+            self.padded_data = self.downsample(self.padded_data)
+            for j in xrange(self.cd[0]):
+                self.convolution_layer[i][j,:] = self.convolve(self.padded_data, self.fw[j])
+                self.convolution_layer[i][j,:] = self.activate(self.convolution_layer[i][j,:])
+            # Downsample
+
+
+
+        # Reformat/fully connect
+        self.fc = np.array(self.convolution_layer).ravel()
+
+        self.fc1 = self.o1w * self.fc
+        self.fc1 = self.activate(self.fc1)
+
+        self.fc2 = np.dot(self.fc1, self.o2w)
+        self.fc2 = self.activate(self.fc2)
+        return self.fc2.T
 
     def feed_forward(self, data):
         # Pads data, performs convolution, and fully connects layers into output
