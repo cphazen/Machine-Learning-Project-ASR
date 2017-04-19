@@ -18,11 +18,14 @@ class ProjectSettingsBase(object):
     _string_dictionary = {}
 
     def get_string(self, key):
-    	if key=="transcript_type": return self._string_dictionary[key]
+
+        path_list = ["phone_file", "dictionary_file", "transcript_file", "words_to_phones_file", "directory_path"]
+
+    	if key not in path_list: return self._string_dictionary[key]
     	else: return os.path.join(self._base_path, self._string_dictionary[key])
 
     def _set_string(self, key, string):
-    	self._string_dictionary[key] = str(string)
+    	self._string_dictionary[key] = string
 
     def __init__(self):
 
@@ -52,16 +55,16 @@ class ProjectSettingsUFLabComputers(ProjectSettingsBase):
                         "example_setting_key_2": "example_setting_string_2"}
 
 
-class ProjectSettingsForSomeOtherWorkStation(ProjectSettingsBase):
+class ProjectSettingsUFLabComputers2ndEdition(ProjectSettingsBase):
     """
     Just stub code for running the
     project on a different device.
     """
 
-    #_base_path = "..."
-    #_custom_settingss = {"...": "..."}
-    pass
+    _base_path = "C:\\Users\\jr8000\Desktop\\CAP6610Project"
+    _custom_settings = {"audio_freq_spect_len": int(1000),
+                        "audio_freq_spect_overlap": int(100)}
 
 
 
-configuration = ProjectSettingsUFLabComputers()
+configuration = ProjectSettingsUFLabComputers2ndEdition()
