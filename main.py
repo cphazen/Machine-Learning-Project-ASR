@@ -11,6 +11,7 @@ np.seterr(all="ignore")         # NOTE: You may want to comment this out for tes
 # Our own stuff:
 from cnn import CNN
 from rnn import RNN
+from settings import configuration as conf
 
 #===== ACTIVATION FUNCTIONS =====#
 def sign(x):
@@ -322,12 +323,12 @@ def demo_network():
 def main():
     # VARIABLES - FILES
     # NOTE: Make sure to change these for different libraries!
-    phone_file = 'an4\\etc\\an4.phone'                      # path to file of phone list
-    dictionary_file = 'an4\\etc\\an4.dic'                   # path to file of word list
-    transcript_file = 'an4\\etc\\an4_train.transcription'   # path/directory of transcript file(s)
-    transcript_type = 'CMU AN4'                             # library being used (to find & parse transcript file)
-    words_to_phones_file = 'an4\\etc\\an4.dic'              # path to file matching words with phones
-    directory_path = 'an4\\feat\\an4_clstk'                 # directory containing audio files
+    phone_file = conf.get_string("phone_file")                       # path to file of phone list
+    dictionary_file = conf.get_string("dictionary_file")             # path to file of word list
+    transcript_file = conf.get_string("transcript_file")             # path/directory of transcript file(s)
+    transcript_type = conf.get_string("transcript_type")             # library being used (to find & parse transcript file)
+    words_to_phones_file = conf.get_string("words_to_phones_file")   # path to file matching words with phones
+    directory_path = conf.get_string("directory_path")               # directory containing audio files
 
     # VARIABLES - NUMBERS
     learning_rate = .2
