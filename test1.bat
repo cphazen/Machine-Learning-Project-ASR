@@ -1,0 +1,1 @@
+"C:\Python27\python.exe" -i -c "import sys; sys.path.append('C:\\Users\\jr8000\\Desktop\\CAP6610Project'); import main"
