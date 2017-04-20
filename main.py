@@ -50,6 +50,12 @@ def d_tanh(x):
     # Tanh (derivative)
     return 1.0 - x**2
 
+def softmax(x):
+    # Softmax
+    e_y = np.exp(x - np.max(x))
+    return e_y / e_y.sum()
+
+
 #===== READ & FORMAT DATA =====#
 def one_hot(item, dictionary):
     # The number of phones is finite, so we can just convert phones to separate
@@ -223,6 +229,20 @@ def regularize_length(length, vectors, empty):
         vector += empty_vectors
     return vectors
 
+def normalize_data(data, shift = None):
+    # Recenter data so sum = 0
+    #
+    # Parameters:
+    #   data        data to be normalized
+    #
+    # Returns:
+    #   normalized data
+    data = np.array(data)
+    if shift is None:
+        shift = np.average(data)
+    data = data - shift
+    return data.tolist()
+
 def setup_features(directory, phones, dictionary, transcript, words_to_phones):
     # Sets up feature vectors
     #
@@ -274,14 +294,17 @@ def setup_features(directory, phones, dictionary, transcript, words_to_phones):
     max_audio = len(max(audio_features, key=len))
     empty_audio = [0.0] * 13                                # TODO: This will need to change based on our own audio format
     audio_features = regularize_length(max_audio + 1, audio_features, empty_audio)  # +1 to add bias
+    audio_features = normalize_data(audio_features)
 
     max_phones = len(max(phone_features, key=len))
     empty_phone = one_hot('SIL', phones)
     phone_features = regularize_length(max_phones + 1, phone_features, empty_phone) # +1 to add bias
+    phone_features = normalize_data(phone_features)
 
     max_words = len(max(word_features, key=len))
     empty_word = binary(0, bits)
     word_features = regularize_length(max_words, word_features, empty_word)         # words will never be inputs, so no need for bias
+    word_features = normalize_data(word_features)
 
     return audio_features, phone_features, word_features
 
@@ -381,7 +404,7 @@ def test_network(l1, l2, features, phones, dictionary, threshold):
     accuracy_1 = accuracy_1/samples
     accuracy_2 = accuracy_2/samples
     print("LAYER 1 ACCURACY: " + "{0:.2f}".format(accuracy_1) + "%")
-    print("LAYER 1 ACCURACY: " + "{0:.2f}".format(accuracy_2) + "%")
+    print("LAYER 2 ACCURACY: " + "{0:.2f}".format(accuracy_2) + "%")
     return
 
 def demo_network():
@@ -407,7 +430,7 @@ def main():
     #   Layer 1:
     filter_width = 8                    # width of convolving filter
     filter_height = 13                  # height of convolving filter
-    filter_count = 3                    # number of filters applied
+    filter_count = 4                   # number of filters applied
     filter_stride = 4                   # how far the filter moves between convolves
     filter_padding = 0                  # padding around the input to use edge data (may not be useful with audio)
     #   Layer 2:
@@ -415,8 +438,8 @@ def main():
     threshold = 0.01                    # minimum value to be considered a 1 (for testing)
 
     # VARIABLES - FUNCTIONS
-    activate = sigmoid
-    d_activate = d_sigmoid
+    activate = softmax
+    d_activate = d_relu
 
     # SETUP
     print("[INFO] Loading files")
@@ -436,7 +459,6 @@ def main():
     test_phone = [item[1] for item in zip_test]
     test_word = [item[2] for item in zip_test]
     test_features = (test_audio, test_phone, test_word)
-
 
     zip_train = zip(audio_features[test_file_count:], phone_features[test_file_count:], word_features[test_file_count:])
     random.shuffle(zip_train)

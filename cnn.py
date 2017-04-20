@@ -143,9 +143,9 @@ class CNN(object):
         self.fw = []
         for i in xrange(filter_count):
             #filter.append(np.random.randn(fd[0], fd[1], fd[2]))
-            self.fw.append(np.random.randn(1, self.fd[0]*self.fd[1]*self.fd[2]))
-        self.o1w = np.random.randn(self.od[1],1)
-        self.o2w = np.random.randn(self.cd[0]*self.cd[1]*self.cd[2], self.od[2])
+            self.fw.append(np.random.randn(1, self.fd[0]*self.fd[1]*self.fd[2]) /2.0 + 1.0)
+        self.o1w = np.random.randn(self.od[1],1)/2.0 + 1.0
+        self.o2w = np.random.randn(self.cd[0]*self.cd[1]*self.cd[2], self.od[2])/2.0 + 1.0
 
         # ACTIVATION
         self.activate = np.vectorize(activate)

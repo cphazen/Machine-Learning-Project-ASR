@@ -16,10 +16,10 @@ class RNN(object):
         self.md = memory_dimension
 
         # WEIGHTS
-        self.wm = np.random.randn(memory_dimension, memory_dimension)
-        self.w1 = np.random.randn(input_dimension, memory_dimension)
-        self.w2 = np.random.randn(memory_dimension, output_dimension)
-        self.w3 = np.random.randn(input_count, output_count)
+        self.wm = np.random.randn(memory_dimension, memory_dimension)/2.0 + 1.0
+        self.w1 = np.random.randn(input_dimension, memory_dimension)/2.0 + 1.0
+        self.w2 = np.random.randn(memory_dimension, output_dimension)/2.0 + 1.0
+        self.w3 = np.random.randn(input_count, output_count)/2.0 + 1.0
 
         # ACTIVATION
         self.activate = np.vectorize(activate)
