@@ -1,0 +1,26 @@
+This directory contains mel cepstra encoded files created from audio 
+files in the Census (AN4) database.
+
+The AN4 database was recorded at Carnegie Mellon University circa
+1991. For more detailes, please see "Acoustical and environmental
+robustness in automatic speech recognition", by Alex Acero, published
+by Kluwer Academic Publishers, 1993.
+
+The cepstra files were created with the following parameters:
+
+-sampling rate 16 kHz
+-mel filterbank lower frequency: 130
+-mel filterbank upper frequency: 6800
+-number of filters: 40
+-frame rate: 100
+-FFT size: 512 points
+-number of cepstral coefficients: 13
+
+The directories contain:
+
+-feat/an4_clstk: training data set recorded on close talking microphone.
+
+-feat/an4test_clstk: test data set recorded on close talking microphone.
+
+-etc: directory containing the transcriptions, control files, dictionary etc.
+
