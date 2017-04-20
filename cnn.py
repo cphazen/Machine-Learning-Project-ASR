@@ -24,9 +24,10 @@ def data_to_col(data, filter_size, stride_length):
     d, w, h = data.shape                                # data
     fw, fh = filter_size                                # filter
 
-    if ((w-fh) % stride_length != 0) or ((h-fw) % stride_length != 0) or \
-       (fw < stride_length) or (fh < stride_length):
-       print("[INFO] Invalid filter size and stride length. Data may be lost.")
+    # Debugging only
+    # if ((w-fh) % stride_length != 0) or ((h-fw) % stride_length != 0): or \
+    #    (fw < stride_length) or (fh < stride_length):
+    #    print("[INFO] Invalid filter size and stride length. Data may be lost.")
 
     i = (w - fh)/stride_length + 1                      # number of filters taken horizontally
     j = (h - fw)/stride_length + 1                      # number of filters taken vertically
@@ -125,7 +126,6 @@ class CNN(object):
                        filter_width, filter_height,
                        filter_count, filter_stride, filter_padding,
                        output_width, output_height,
-                       downsample_count, downsample_multiplier,
                        activate, d_activate):
         # DIMENSIONS
         self.id = (input_depth, input_height, input_width)
@@ -138,9 +138,6 @@ class CNN(object):
 
         self.fs = filter_stride
         self.fp = filter_padding
-
-        self.dc = downsample_count
-        self.dm = downsample_multiplier
 
         # WEIGHTS
         self.fw = []
@@ -174,50 +171,6 @@ class CNN(object):
         col_data = data_to_col(data, (self.fd[1],self.fd[2]), self.fs)  # convert data to columns
         res = np.dot(filter,col_data)                                   # multiply by filter
         return res
-
-    def downsample(self, data):
-        col_data = data_to_col(data, (self.fd[1],self.fd[2]), self.fs*self.dm)  # convert data to columns
-        print(col_data.shape)
-
-    def feed_forward_w_downsample(self, data):
-        # Pads data, performs convolution, and fully connects layers into output
-        #
-        # Parameters:
-        #   data        data to transform into approximation of classification
-        #
-        # Returns:
-        #   approximation of classification
-
-        # Add padding to data
-        self.data = np.matrix(data).reshape(self.id)
-        pd = self.id[0]
-        pw = self.id[1] + 2 * self.fp
-        ph = self.id[2] + 2 * self.fp
-        self.padded_data = np.pad(data, [(self.fp,self.fp),(self.fp,self.fp)], 'constant', constant_values = 0.0)
-        self.padded_data = self.padded_data.reshape((pd, pw, ph))
-
-        # Convolve
-        curr_dim = self.cd
-        self.convolution_layer = [np.zeros((curr_dim[0], curr_dim[1] * curr_dim[2]))] * self.dc
-        for i in xrange(self.dc):
-            # Convolve
-            self.padded_data = self.downsample(self.padded_data)
-            for j in xrange(self.cd[0]):
-                self.convolution_layer[i][j,:] = self.convolve(self.padded_data, self.fw[j])
-                self.convolution_layer[i][j,:] = self.activate(self.convolution_layer[i][j,:])
-            # Downsample
-
-
-
-        # Reformat/fully connect
-        self.fc = np.array(self.convolution_layer).ravel()
-
-        self.fc1 = self.o1w * self.fc
-        self.fc1 = self.activate(self.fc1)
-
-        self.fc2 = np.dot(self.fc1, self.o2w)
-        self.fc2 = self.activate(self.fc2)
-        return self.fc2.T
 
     def feed_forward(self, data):
         # Pads data, performs convolution, and fully connects layers into output
@@ -326,7 +279,7 @@ class CNN(object):
             print('[ERROR] File dimensions do not match this network')
         return res
 
-    def train(self, given_input, expected_output, epoch, learning_rate):
+    def train(self, given_input, expected_output, epoch, learning_rate, reader):
         # Performs feed forward and back propagate for all input
         #
         # Parameters:

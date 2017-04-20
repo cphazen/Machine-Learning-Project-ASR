@@ -15,6 +15,10 @@ class Progress(object):
         undone =   " " * (self.width - done)
         return progress + undone
 
+    def get_percent(self):
+        percent = (self.step/self.n*100)
+        return "{0:.2f}".format(percent)
+
     def start_progress(self):
         # Creates an empty progress bar and prints to screen
         sys.stdout.write('[' +  self.get_length() + ']')
@@ -24,7 +28,7 @@ class Progress(object):
     def update_progress(self):
         # Updates progress bar and prints update to screen
         self.step += 1.0
-        sys.stdout.write('\r[' +  self.get_length() + ']')
+        sys.stdout.write('\r[' +  self.get_length() + '] ' + self.get_percent() + '%')
         sys.stdout.flush()
         return
 

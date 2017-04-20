@@ -3,10 +3,11 @@ import hashlib
 import os
 import math
 import struct
+import random
 
 # External libraries:
 import numpy as np
-np.seterr(all="ignore")         # NOTE: You may want to comment this out for testing
+#np.seterr(all="ignore")         # NOTE: Uncomment this for demo!
 
 # Our own stuff:
 from cnn import CNN
@@ -27,11 +28,19 @@ def d_sigmoid(x):
 
 def relu(x):
     # ReLU
-    return x if x > 0 else 0
+    return max((x, 100.0)) if x > 0 else 0.0
 
 def d_relu(x):
     # ReLU (derivative)
-    return 1 if x > 0 else 0
+    return 1.0 if x > 0 else 0.0
+
+def leaky_relu(x):
+    # Leaky ReLU
+    return max((x, 100.0)) if x > 0 else (0.01 * x)
+
+def d_leaky_relu(x):
+    # Leaky ReLU (derivative)
+    return 1.0 if x > 0 else 0
 
 def tanh(x):
     # Tanh
@@ -63,7 +72,7 @@ def rev_one_hot(vector, dictionary):
     #
     # Returns:
     #   category of vectorized item
-    vector = vector.tolist()
+    #vector = vector.tolist()
     return dictionary[vector.index(max(vector))]
 
 def binary(i, length):
@@ -88,7 +97,7 @@ def rev_binary(vector, threshold, dictionary):
     #
     # Returns:
     #   word from dictionary
-    binary = ''.join(map(lambda x: '1' if x >= threshold else '0', vector))
+    binary = ''.join(map(lambda x: '1' if x > threshold else '0', vector))
     index = int(binary, 2)
     if index < len(dictionary):
         return dictionary[index]
@@ -237,7 +246,6 @@ def setup_features(directory, phones, dictionary, transcript, words_to_phones):
     for path, dirs, files in os.walk(directory):
         for filename in [x for x in files if x.endswith('.mfc')]:  # TODO: Change .mfc to .wav
             curr_path = os.path.join(path, filename)
-
             # Converts raw audio to feature vector
             # Adds feature vector to list of feature vectors
             audio_features.append(mfcc_to_features(curr_path))     # TODO: Replace with our own audio to feature vector
@@ -291,18 +299,14 @@ def load(layer_1, layer_2):
     return res1 and res2
 
 #===== FUNCTIONALITY =====#
-def train_network(l1, l2, features, epoch, learning_rate, dictionary, phones):
+def train_network(l1, l2, features, epoch, learning_rate):
     # UNGROUP VARIABLES
     audio_features, phone_features, word_features = features
 
     # TRAIN LAYER 1: AUDIO -> PHONES
     print("[INFO] Training LAYER 1: AUDIO -> PHONES")
-    output_features = l1.train(audio_features, phone_features, epoch, learning_rate)
+    output_features = l1.train(audio_features, phone_features, epoch, learning_rate, read_phones)
 
-    # NOTE: You can reformat output_features (a list of phones) to be
-    #       fed into the next layer here, e.g. add new dimensions with deltas
-    #       if you want to try a sliding window
-    # print(output_features)
     # TRAIN LAYER 2: PHONES -> WORDS
     print("[INFO] Training LAYER 2: PHONES -> WORDS")
     l2.train(output_features, word_features, epoch, learning_rate)
@@ -310,9 +314,75 @@ def train_network(l1, l2, features, epoch, learning_rate, dictionary, phones):
 
     return
 
-def test_network():
-    # TODO
-    pass
+def read_phones(output, phones):
+    phone_list = []
+    for i in xrange(len(output)):
+        phone = rev_one_hot(output[i], phones)
+        if phone != "SIL":
+            phone_list.append(phone)
+    return phone_list
+
+
+def read_words(output, threshold, dictionary):
+    word_list = []
+    for i in xrange(len(output)):
+        word = rev_binary(output[i], threshold, dictionary)
+        if word != "<sil>":
+            word_list.append(word)
+    return word_list
+
+def calculate_accuracy(actual, expected):
+    correct = 0.0
+    total = 0.0
+    res = 0.0
+    for result in actual:
+        total += 1.0
+        if result in expected:
+            correct += 1.0
+    if total > 0:
+        res = correct/total*100.0
+    return res
+
+def test_network(l1, l2, features, phones, dictionary, threshold):
+    # UNGROUP VARIABLES
+    audio_features, phone_features, word_features = features
+    accuracy_1 = 0;
+    accuracy_2 = 0;
+    samples = 0;
+    for i in xrange(len(audio_features)):
+        print("==========================")
+        print("        SAMPLE " + str(i+1))
+        print("==========================")
+        print("LAYER 1: AUDIO -> PHONES")
+        phone_results = l1.test(audio_features[i])
+        actual_phones =  read_phones(phone_results.tolist(), phones)
+        expected_phones = read_phones(phone_features[i], phones)
+        accuracy_phones = calculate_accuracy(actual_phones, expected_phones)
+        print("Actual:   " + ' '.join(actual_phones))
+        print("Expected: " + ' '.join(expected_phones))
+
+        print("ACCURACY: " + "{0:.2f}".format(accuracy_phones) + "%")
+
+        print("LAYER 2: PHONES -> WORDS")
+        word_results = l2.test(phone_features[i])
+        actual_words = read_words(word_results, threshold, dictionary)
+        expected_words = read_words(word_features[i], 0, dictionary)
+        accuracy_words = calculate_accuracy(actual_words, expected_words)
+        print("Actual:   " + ' '.join(actual_words))
+        print("Expected: " + ' '.join(expected_words))
+
+        print("ACCURACY: " + "{0:.2f}".format(accuracy_words) + "%")
+        print("==========================")
+
+        accuracy_1 += accuracy_phones
+        accuracy_2 += accuracy_words
+        samples += 1;
+
+    accuracy_1 = accuracy_1/samples
+    accuracy_2 = accuracy_2/samples
+    print("LAYER 1 ACCURACY: " + "{0:.2f}".format(accuracy_1) + "%")
+    print("LAYER 1 ACCURACY: " + "{0:.2f}".format(accuracy_2) + "%")
+    return
 
 def demo_network():
     # TODO
@@ -322,26 +392,27 @@ def demo_network():
 def main():
     # VARIABLES - FILES
     # NOTE: Make sure to change these for different libraries!
-    phone_file = 'an4\\etc\\an4.phone'                      # path to file of phone list
-    dictionary_file = 'an4\\etc\\an4.dic'                   # path to file of word list
-    transcript_file = 'an4\\etc\\an4_train.transcription'   # path/directory of transcript file(s)
-    transcript_type = 'CMU AN4'                             # library being used (to find & parse transcript file)
-    words_to_phones_file = 'an4\\etc\\an4.dic'              # path to file matching words with phones
-    directory_path = 'an4\\feat\\an4_clstk'                 # directory containing audio files
+    phone_file = 'an4\\etc\\an4.phone'                            # path to file of phone list
+    dictionary_file = 'an4\\etc\\an4.dic'                         # path to file of word list
+    transcript_file = 'an4\\etc\\an4_combined.transcription'      # path/directory of transcript file
+    transcript_type = 'CMU AN4'                                   # library being used (to find & parse transcript file)
+    words_to_phones_file = 'an4\\etc\\an4.dic'                    # path to file matching words with phones
+    directory_path = 'an4\\feat'                                  # directory containing training audio files
+
+    test_file_count = 130                                         # number of test files
 
     # VARIABLES - NUMBERS
-    learning_rate = .2
+    learning_rate = .08
     epoch = 1
     #   Layer 1:
-    filter_width = 2                    # width of convolving filter
+    filter_width = 8                    # width of convolving filter
     filter_height = 13                  # height of convolving filter
     filter_count = 3                    # number of filters applied
-    filter_stride = 1                   # how far the filter moves between convolves
+    filter_stride = 4                   # how far the filter moves between convolves
     filter_padding = 0                  # padding around the input to use edge data (may not be useful with audio)
-    downsample_count = 1                # how many times downsampling is performed
-    downsample_multiplier = 2
     #   Layer 2:
-    memory_dimension = 5                # number of hidden nodes in RNN
+    memory_dimension = 16               # number of hidden nodes in RNN
+    threshold = 0.01                    # minimum value to be considered a 1 (for testing)
 
     # VARIABLES - FUNCTIONS
     activate = sigmoid
@@ -359,7 +430,20 @@ def main():
     audio_features, phone_features, word_features = setup_features(directory_path, phones, dictionary, transcript, words_to_phones)
 
     # GROUPING VARIABLES
-    features = (audio_features, phone_features, word_features)
+    zip_test = zip(audio_features[:test_file_count], phone_features[:test_file_count], word_features[:test_file_count])
+    random.shuffle(zip_test)
+    test_audio = [item[0] for item in zip_test]
+    test_phone = [item[1] for item in zip_test]
+    test_word = [item[2] for item in zip_test]
+    test_features = (test_audio, test_phone, test_word)
+
+
+    zip_train = zip(audio_features[test_file_count:], phone_features[test_file_count:], word_features[test_file_count:])
+    random.shuffle(zip_train)
+    train_audio = [item[0] for item in zip_train]
+    train_phone = [item[1] for item in zip_train]
+    train_word = [item[2] for item in zip_train]
+    features = (train_audio, train_phone, train_word)
 
     # INITIALIZING
     # LAYER 1: AUDIO -> PHONES
@@ -370,7 +454,6 @@ def main():
              filter_width, filter_height,
              filter_count, filter_stride, filter_padding,
              l1_output[0], l1_output[1],
-             downsample_count, downsample_multiplier,
              activate, d_activate)
 
     # LAYER 2: PHONES -> WORDS
@@ -411,7 +494,7 @@ def main():
                 break
             elif command == 1:
                 # [1] Train network
-                train_network(l1, l2, features, epoch, learning_rate, dictionary, phones)
+                train_network(l1, l2, features, epoch, learning_rate)
                 trained = True
             elif command == 2:
                 # [2] Load an existing network
@@ -421,7 +504,8 @@ def main():
             elif command == 3 and trained:
                 # [3] Test network
                 # TODO: Testing function
-                print('[ERROR] Not implemented')
+                # print('[ERROR] Not implemented')
+                test_network(l1, l2, test_features, phones, dictionary, threshold)
                 pass
             elif command == 4 and trained:
                 # [4] Demo network

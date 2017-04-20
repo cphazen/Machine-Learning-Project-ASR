@@ -4,7 +4,6 @@ import copy
 
 # External libraries:
 import numpy as np
-
 # Our own stuff:
 from progress import Progress
 
@@ -38,7 +37,6 @@ class RNN(object):
         self.ai = []
         self.am = []
         self.ao1 = []
-
         self.am.append(np.zeros(self.md))    # initialize memory for first node
 
         for i in xrange(self.id[0]):
@@ -179,4 +177,4 @@ class RNN(object):
         #
         # Returns:
         #   Result of feed forward
-        return self.feed_forward(data)
+        return self.forward_propagate(data)
