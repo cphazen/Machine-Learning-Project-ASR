@@ -25,9 +25,7 @@ class Phasor(object):
         the number are added to the number
         after the magnitude and angle args
         have been used to create the number.
-
         NOTE: the angle is in radians.
-
         NOTE: the approximate_pi_half arg is
         a boolean arg that when set to true,
         if the angle is approximately equal
